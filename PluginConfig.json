@@ -1,0 +1,10 @@
+{
+  "name": "supernote_shape_snap",
+  "desc": "Snap lasso-selected strokes to nearby clean shapes while leaving non-shapes unchanged.",
+  "iconPath": "assets/icon.png",
+  "versionName": "0.0.1",
+  "versionCode": "1",
+  "pluginID": "za2k9tzqdssnp4us",
+  "pluginKey": "supernote_shape_snap",
+  "jsMainPath": "index"
+}
