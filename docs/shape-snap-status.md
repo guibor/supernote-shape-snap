@@ -16,13 +16,14 @@ The active algorithm is a resampled, corner-first matcher with:
 
 ## Active Benchmark
 
-The current working benchmark is a reduced fixture from a real exported Supernote sample page:
+The current working benchmark set uses two real exported Supernote fixtures:
 
 - [sample-page-2026-04-09.json](/Users/mdf/code/supernote-shape-snap/__tests__/fixtures/sample-page-2026-04-09.json)
+- [sample-page-2026-04-09-191519.json](/Users/mdf/code/supernote-shape-snap/__tests__/fixtures/sample-page-2026-04-09-191519.json)
 
-That page contains 10 isolated hand-drawn shapes and is the current regression target for local iteration.
+The first page contains 10 isolated hand-drawn shapes and remains the broad “works well enough to trust” page. The second page is the rectangle-heavy regression page that exposed the new triangle override bug.
 
-Expected labels:
+Expected labels for the first page:
 
 1. rectangle
 2. rectangle
@@ -34,6 +35,12 @@ Expected labels:
 8. pentagon
 9. ellipse
 10. rectangle
+
+Additional locked expectations from the second page:
+
+- element 2 -> triangle
+- elements 3, 4, 5 -> rectangle
+- element 9 -> pentagon
 
 ## Why This Benchmark Matters
 
@@ -54,6 +61,11 @@ The matcher is being tuned with these priorities:
 3. Recover ordinary notebook triangles and rectangles even when they are not perfectly closed.
 4. Apply weak family priors only within sibling families, especially circle vs ellipse and square vs rectangle.
 
+Recent matcher improvement:
+
+- closed triangles with one weak extra corner now get a reduced-triangle fallback instead of immediately collapsing into rectangle or higher-sided polygon interpretations
+- reduced-triangle recovery is now blocked when the same contour already has strong multi-source quadrilateral evidence, which prevents rounded rectangles from collapsing into triangles
+
 The write path is also being tightened around two Supernote-specific constraints:
 
 - recognized notes may reject layer APIs, so layer preservation must be best-effort rather than mandatory
@@ -70,6 +82,14 @@ The orientation policy is now explicit too:
 - The benchmark page is strong enough for iteration but not broad enough for final confidence.
 - Shape 7 on the sample page is still the softest semantic case. It currently remains in the ellipse family, which is acceptable for now because it is clearly not a polygon and still reads as intentional geometry.
 - Broader validation still needs more exported samples, especially negatives and multi-stroke shapes.
+- Unsupported “house” or other irregular 5-sided shapes still need a dedicated regular-polygon strictness pass. That should be handled separately from triangle recovery so the real pentagon benchmark does not regress.
+
+## Open Items
+
+- Add an actual toolbar/sidebar settings surface. It has not been implemented yet, despite earlier discussion.
+- Keep tuning triangle recovery on broader real samples now that the rectangle regression from `20260409_191519` is covered by tests.
+- Tighten the no-match path for unsupported irregular 5-sided shapes so “house” drawings do not snap to pentagons.
+- Investigate why the `20260409_191519` note export produced duplicated page payloads.
 
 ## Next Expansion
 

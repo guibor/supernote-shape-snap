@@ -1,6 +1,6 @@
-# Supernote Shape Snap
+# Snap Shapes
 
-Supernote Shape Snap is a Supernote plugin that turns rough hand-drawn lasso selections into clean geometry.
+Snap Shapes is a Supernote plugin that turns rough hand-drawn lasso selections into clean geometry, including multiple independent shapes inside one lasso.
 
 Current supported output families:
 
@@ -56,13 +56,14 @@ Important source files:
 
 ## Benchmarking
 
-The current active regression fixture is:
+The current active regression fixtures are:
 
 - [__tests__/fixtures/sample-page-2026-04-09.json](__tests__/fixtures/sample-page-2026-04-09.json)
+- [__tests__/fixtures/sample-page-2026-04-09-191519.json](__tests__/fixtures/sample-page-2026-04-09-191519.json)
 
-It is a reduced real-device export from a Supernote page containing 10 isolated hand-drawn shapes. That page is used as the current “works well enough to trust” benchmark while the broader dataset is still being built.
+The first fixture is a reduced real-device export from a Supernote page containing 10 isolated hand-drawn shapes. The second fixture is a later note export page that specifically caught the rectangle-to-triangle regression.
 
-The current expected labels for that page are:
+The current expected labels for the first page are:
 
 1. rectangle
 2. rectangle
@@ -74,6 +75,12 @@ The current expected labels for that page are:
 8. pentagon
 9. ellipse
 10. rectangle
+
+The current regression expectations from the second page are:
+
+- element 2 -> triangle
+- elements 3, 4, 5 -> rectangle
+- element 9 -> pentagon
 
 Tests:
 
@@ -127,11 +134,9 @@ Then install on the device:
 Settings -> Apps -> Plugins -> Add Plugin
 ```
 
-## Current Known Weak Spots
+## Open Items
 
-The plugin is in a good state, but the remaining likely improvement areas are:
-
-- triangle reliability on some hand-drawn closed triangles
-- over-eager regular polygon preference on unsupported “house” or generic 5-sided shapes
-- broader benchmark coverage, especially negatives and multi-stroke examples
-- a future settings surface for tuning thresholds without rebuilding the plugin
+- The left-side settings/customization UI discussed earlier is not implemented yet. The current plugin still exposes only lasso actions plus the export toolbar action.
+- Triangle recovery is now guarded against stealing strong rectangles, but broader triangle reliability still needs more real samples beyond the current benchmark pages.
+- Unsupported “house” or other irregular 5-sided shapes still need a stricter no-match path so they do not drift into regular pentagons.
+- The note export path produced duplicated page payloads for `20260409_191519`; that exporter bug still needs investigation.

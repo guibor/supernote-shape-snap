@@ -180,6 +180,12 @@ Accept a polygon candidate when:
 
 For 4-sided shapes, do not use arbitrary quadrilateral output in v1. Route them through rectangle/square logic.
 
+Triangle handling needs one extra recovery rule in practice:
+
+- if a drawn triangle picks up one or two weak extra corners from wobble or rounding, derive a reduced 3-corner candidate from the extracted contour and let that compete as triangle intent
+- if multiple triangle routes agree, triangle should beat a nearby rectangle or higher-sided polygon fallback
+- but do not let reduced-triangle recovery override a stable quadrilateral when multiple independent simplification paths already agree on rectangle or square intent
+
 ## Step 7: Score Candidates
 
 Each candidate gets a normalized score where lower is better.

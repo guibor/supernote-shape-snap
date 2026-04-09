@@ -20,6 +20,31 @@ function loadSamplePageFixture(): SampleFixture {
   return JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as SampleFixture;
 }
 
+function loadNotebookRegressionFixture(): SampleFixture {
+  const fixturePath = path.join(
+    __dirname,
+    'fixtures',
+    'sample-page-2026-04-09-191519.json',
+  );
+  return JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as SampleFixture;
+}
+
+function fixtureElementInput(
+  element: SampleFixture['elements'][number],
+): {
+  samplePoints: PointLike[];
+  strokePaths: PointLike[][];
+  recognitionNames: string[];
+} {
+  const contourPoints = element.contour_groups_px.flat();
+  return {
+    samplePoints:
+      contourPoints.length >= 8 ? contourPoints : element.sample_points_px,
+    strokePaths: [element.sample_points_px],
+    recognitionNames: element.recognition_name ? [element.recognition_name] : [],
+  };
+}
+
 function jitter(value: number, seed: number, amount = 2): number {
   return value + Math.sin(seed * 1.37) * amount;
 }
@@ -170,6 +195,102 @@ function shortestAxisDelta(angle: number, target: number): number {
   return delta;
 }
 
+function seededUnit(seed: number): number {
+  const value = Math.sin(seed) * 10000;
+  return value - Math.floor(value);
+}
+
+function seededJitter(value: number, seed: number, amount: number): number {
+  return value + (seededUnit(seed) - 0.5) * 2 * amount;
+}
+
+function generatedTriangle(seed: number): PointLike[] {
+  const base = [
+    {
+      x: 180 + seededJitter(0, seed + 1, 25),
+      y: 90 + seededJitter(0, seed + 2, 25),
+    },
+    {
+      x: 300 + seededJitter(0, seed + 3, 35),
+      y: 270 + seededJitter(0, seed + 4, 30),
+    },
+    {
+      x: 90 + seededJitter(0, seed + 5, 35),
+      y: 250 + seededJitter(0, seed + 6, 30),
+    },
+  ];
+  const pointsPerEdge = 10 + Math.floor(seededUnit(seed + 7) * 16);
+  const edgeJitter = 0.6 + seededUnit(seed + 8) * 4.5;
+  const points: PointLike[] = [];
+
+  for (let i = 0; i < base.length; i += 1) {
+    const start = base[i];
+    const end = base[(i + 1) % base.length];
+    for (let step = 0; step < pointsPerEdge; step += 1) {
+      const ratio = step / pointsPerEdge;
+      points.push({
+        x: seededJitter(
+          start.x + (end.x - start.x) * ratio,
+          seed * 1000 + i * 100 + step,
+          edgeJitter,
+        ),
+        y: seededJitter(
+          start.y + (end.y - start.y) * ratio,
+          seed * 2000 + i * 100 + step,
+          edgeJitter,
+        ),
+      });
+    }
+  }
+
+  const mode = Math.floor(seededUnit(seed + 9) * 6);
+  const n = points.length;
+  if (mode === 0) {
+    const idx = Math.floor(seededUnit(seed + 10) * n);
+    for (let k = -4; k <= 4; k += 1) {
+      const j = (idx + k + n) % n;
+      const left = points[(j - 1 + n) % n];
+      const right = points[(j + 1) % n];
+      points[j] = {
+        x: (left.x + points[j].x + right.x) / 3,
+        y: (left.y + points[j].y + right.y) / 3,
+      };
+    }
+  } else if (mode === 1) {
+    points[n - 1] = {
+      x: points[n - 1].x + 10 + seededUnit(seed + 11) * 18,
+      y: points[n - 1].y + 4 + seededUnit(seed + 12) * 12,
+    };
+  } else if (mode === 2) {
+    const idx = Math.floor(n / 3);
+    for (let k = 0; k < 5; k += 1) {
+      const j = (idx + k) % n;
+      points[j] = {
+        x: (points[j].x + points[(j + 1) % n].x) / 2,
+        y: (points[j].y + points[(j + 1) % n].y) / 2,
+      };
+    }
+  } else if (mode === 3) {
+    const idx = Math.floor((2 * n) / 3);
+    for (let k = 0; k < 4; k += 1) {
+      const j = (idx + k) % n;
+      points[j] = {
+        x: points[j].x + 6 * (seededUnit(seed + 13 + k) - 0.5),
+        y: points[j].y + 20 * (seededUnit(seed + 17 + k) - 0.5),
+      };
+    }
+  } else if (mode === 4) {
+    for (let i = 0; i < n; i += 1) {
+      points[i] = {
+        x: points[i].x + 8 * Math.sin(i / 3),
+        y: points[i].y + 8 * Math.cos(i / 5),
+      };
+    }
+  }
+
+  return points;
+}
+
 describe('detectBestShape', () => {
   it('prefers a circle over a near-circle ellipse', () => {
     const points = sampleCircle({x: 200, y: 200}, 80);
@@ -227,6 +348,18 @@ describe('detectBestShape', () => {
     });
 
     expect(result?.kind).toBe('triangle');
+  });
+
+  it('keeps triangle intent on generated weak-corner closed triangles', () => {
+    for (const seed of [98, 149, 244, 286, 474]) {
+      const points = generatedTriangle(seed);
+      const result = detectBestShape({
+        samplePoints: points,
+        strokePaths: [points],
+      });
+
+      expect(result?.kind).toBe('triangle');
+    }
   });
 
   it('detects a pentagon from a five-sided contour', () => {
@@ -421,5 +554,22 @@ describe('detectBestShape', () => {
     });
 
     expect(actualKinds).toEqual(expectedKinds);
+  });
+
+  it('keeps rectangle intent on the 2026-04-09 notebook regression page', () => {
+    const fixture = loadNotebookRegressionFixture();
+    const expectedByIndex = new Map<number, string>([
+      [2, 'triangle'],
+      [3, 'rectangle'],
+      [4, 'rectangle'],
+      [5, 'rectangle'],
+      [9, 'pentagon'],
+    ]);
+
+    for (const [index, expected] of expectedByIndex) {
+      const element = fixture.elements[index - 1];
+      const result = detectBestShape(fixtureElementInput(element));
+      expect(result?.kind).toBe(expected);
+    }
   });
 });

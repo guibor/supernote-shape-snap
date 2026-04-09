@@ -86,6 +86,12 @@ type Candidate = {
   geometry: GeometryDescriptor;
 };
 
+type CandidateSource = {
+  candidate: Candidate | null;
+  vertexCount: number;
+  source: string;
+};
+
 type CircularCorner = {
   index: number;
   saliency: number;
@@ -109,6 +115,8 @@ const RECTANGLE_MAX_SCORE = 0.18;
 const POLYGON_MAX_SCORE = 0.14;
 const CIRCLE_PREFERENCE_MARGIN = 0.026;
 const SQUARE_PREFERENCE_MARGIN = 0.018;
+const TRIANGLE_PREFERENCE_MARGIN = 0.05;
+const TRIANGLE_STRONG_PREFERENCE_MARGIN = 0.09;
 const CIRCLE_AXIS_RATIO_THRESHOLD = 1.15;
 const CURVE_OVER_POLYGON_MARGIN = 0.018;
 const POLYGON_OVER_CURVE_MARGIN = 0.012;
@@ -1724,6 +1732,35 @@ function fitTriangle(
   };
 }
 
+function fitReducedTriangle(
+  ring: PointLike[],
+  corners: PointLike[],
+  bounds: Bounds,
+): Candidate | null {
+  if (corners.length < 4 || corners.length > 5) {
+    return null;
+  }
+
+  let best: Candidate | null = null;
+  for (let first = 0; first < corners.length - 2; first += 1) {
+    for (let second = first + 1; second < corners.length - 1; second += 1) {
+      for (let third = second + 1; third < corners.length; third += 1) {
+        const reduced = [corners[first], corners[second], corners[third]];
+        const candidate = fitTriangle(ring, reduced, bounds);
+        if (!candidate) {
+          continue;
+        }
+
+        if (!best || candidate.score < best.score) {
+          best = candidate;
+        }
+      }
+    }
+  }
+
+  return best;
+}
+
 function fitOpenTriangle(
   path: PointLike[],
   corners: PointLike[],
@@ -1876,6 +1913,19 @@ function chooseQuadrilateralCandidate(
       : squareCandidate ?? rectangleCandidate;
 }
 
+function isRegularPolygonKind(kind: ShapeKind | null | undefined): boolean {
+  return (
+    kind === 'pentagon' ||
+    kind === 'hexagon' ||
+    kind === 'heptagon' ||
+    kind === 'octagon'
+  );
+}
+
+function isQuadrilateralKind(kind: ShapeKind | null | undefined): boolean {
+  return kind === 'rectangle' || kind === 'square';
+}
+
 function polygonCandidateFromVertices(
   ring: PointLike[],
   corners: PointLike[],
@@ -1897,6 +1947,88 @@ function polygonCandidateFromVertices(
   }
 
   return null;
+}
+
+function fitHullTriangle(
+  ring: PointLike[],
+  bounds: Bounds,
+): CandidateSource {
+  const hull = convexHull(ring);
+  if (hull.length < 3) {
+    return {candidate: null, vertexCount: 0, source: 'hull-triangle'};
+  }
+
+  const simplified = simplifyClosedRing(
+    hull,
+    Math.max(3, bounds.diagonal * 0.02),
+    Math.max(4, bounds.diagonal * 0.028),
+  );
+  if (simplified.length === 3) {
+    return {
+      candidate: fitTriangle(ring, simplified, bounds),
+      vertexCount: 3,
+      source: 'hull-triangle',
+    };
+  }
+
+  if (simplified.length >= 4 && simplified.length <= 5) {
+    return {
+      candidate: fitReducedTriangle(ring, simplified, bounds),
+      vertexCount: 3,
+      source: 'hull-triangle',
+    };
+  }
+
+  return {candidate: null, vertexCount: simplified.length, source: 'hull-triangle'};
+}
+
+function chooseTriangleIntentCandidate(
+  sources: CandidateSource[],
+): CandidateSource | null {
+  const triangles = sources.filter(
+    source => source.candidate?.kind === 'triangle',
+  );
+  if (!triangles.length) {
+    return null;
+  }
+
+  return triangles.reduce((best, current) => {
+    if (!best) {
+      return current;
+    }
+
+    const currentScore = current.candidate?.score ?? Number.POSITIVE_INFINITY;
+    const bestScore = best.candidate?.score ?? Number.POSITIVE_INFINITY;
+
+    if (currentScore + 0.008 < bestScore) {
+      return current;
+    }
+
+    if (
+      current.source === 'extracted-triangle' &&
+      currentScore <= bestScore + 0.018
+    ) {
+      return current;
+    }
+
+    if (
+      current.source === 'reduced-extracted-triangle' &&
+      best.source !== 'extracted-triangle' &&
+      currentScore <= bestScore + 0.01
+    ) {
+      return current;
+    }
+
+    if (
+      current.source === 'simplified-closed-triangle' &&
+      best.source !== 'extracted-triangle' &&
+      currentScore <= bestScore + 0.012
+    ) {
+      return current;
+    }
+
+    return best;
+  }, null as CandidateSource | null);
 }
 
 function fitSimplifiedPolygon(
@@ -2497,8 +2629,12 @@ export function detectBestShape(input: ShapeDetectionInput): ShapeMatch | null {
             buildBounds(openPathForFallback),
           ),
           vertexCount: 3,
+          source: 'chord-triangle',
         }
-      : {candidate: null, vertexCount: 0};
+      : {candidate: null, vertexCount: 0, source: 'chord-triangle'};
+  const hullTriangle = forcedRingValid
+    ? fitHullTriangle(forcedClosedRing, bounds)
+    : {candidate: null, vertexCount: 0, source: 'hull-triangle'};
   const simplifiedFallback =
     chordTriangleCandidate.candidate &&
     (!openHullPolygon.candidate ||
@@ -2589,10 +2725,61 @@ export function detectBestShape(input: ShapeDetectionInput): ShapeMatch | null {
     refinedCorners,
     bounds,
   );
+  const reducedExtractedTriangle =
+    refinedCorners.length >= 4 && refinedCorners.length <= 5
+      ? fitReducedTriangle(closedRing, refinedCorners, bounds)
+      : null;
+  const triangleIntent = chooseTriangleIntentCandidate([
+    {
+      candidate:
+        extractedPolygonCandidate?.kind === 'triangle'
+          ? extractedPolygonCandidate
+          : null,
+      vertexCount: cornerIndices.length,
+      source: 'extracted-triangle',
+    },
+    {
+      candidate: reducedExtractedTriangle,
+      vertexCount: reducedExtractedTriangle ? 3 : 0,
+      source: 'reduced-extracted-triangle',
+    },
+    {
+      candidate:
+        simplifiedPolygon.candidate?.kind === 'triangle'
+          ? simplifiedPolygon.candidate
+          : null,
+      vertexCount: simplifiedPolygon.vertexCount,
+      source: 'simplified-closed-triangle',
+    },
+    {
+      candidate:
+        simplifiedOpenPolygon.candidate?.kind === 'triangle'
+          ? simplifiedOpenPolygon.candidate
+          : null,
+      vertexCount: simplifiedOpenPolygon.vertexCount,
+      source: 'simplified-open-triangle',
+    },
+    {
+      candidate:
+        openHullPolygon.candidate?.kind === 'triangle'
+          ? openHullPolygon.candidate
+          : null,
+      vertexCount: openHullPolygon.vertexCount,
+      source: 'open-hull-triangle',
+    },
+    hullTriangle,
+    chordTriangleCandidate,
+  ]);
   const bestPolygonCandidate =
     extractedPolygonCandidate &&
     simplifiedFallback.candidate &&
-    simplifiedFallback.candidate.score + 0.025 < extractedPolygonCandidate.score
+    isRegularPolygonKind(extractedPolygonCandidate.kind) &&
+    extracted.meanSaliency >= 0.28 &&
+    extractedPolygonCandidate.score <= simplifiedFallback.candidate.score + 0.045
+      ? extractedPolygonCandidate
+      : extractedPolygonCandidate &&
+          simplifiedFallback.candidate &&
+          simplifiedFallback.candidate.score + 0.025 < extractedPolygonCandidate.score
       ? simplifiedFallback.candidate
       : extractedPolygonCandidate ?? simplifiedFallback.candidate;
   const bestPolygonCornerCount =
@@ -2602,11 +2789,48 @@ export function detectBestShape(input: ShapeDetectionInput): ShapeMatch | null {
       : extractedPolygonCandidate
         ? cornerIndices.length
         : 0;
+  const quadrilateralEvidenceCount = [
+    extractedPolygonCandidate,
+    simplifiedPolygon.candidate,
+    simplifiedOpenPolygon.candidate,
+  ].filter(candidate => isQuadrilateralKind(candidate?.kind)).length;
+  const strongQuadrilateralIntent =
+    !!bestPolygonCandidate &&
+    isQuadrilateralKind(bestPolygonCandidate.kind) &&
+    cornerIndices.length >= 4 &&
+    fillRatio >= 0.68 &&
+    quadrilateralEvidenceCount >= 2;
+  const polygonWithTrianglePreference =
+    triangleIntent?.candidate && !bestPolygonCandidate
+      ? triangleIntent.candidate
+      : triangleIntent?.candidate &&
+          bestPolygonCandidate &&
+          bestPolygonCandidate.kind !== 'triangle' &&
+          !(
+            strongQuadrilateralIntent &&
+            triangleIntent.source !== 'extracted-triangle'
+          ) &&
+          ((triangleIntent.source === 'extracted-triangle' &&
+            triangleIntent.candidate.score <=
+              bestPolygonCandidate.score + TRIANGLE_STRONG_PREFERENCE_MARGIN) ||
+            ((triangleIntent.source === 'simplified-closed-triangle' ||
+              triangleIntent.source === 'hull-triangle') &&
+              triangleIntent.candidate.score <=
+                bestPolygonCandidate.score + TRIANGLE_PREFERENCE_MARGIN) ||
+            (cornerIndices.length <= 4 &&
+              triangleIntent.candidate.score <=
+                bestPolygonCandidate.score + TRIANGLE_PREFERENCE_MARGIN))
+        ? triangleIntent.candidate
+        : bestPolygonCandidate;
+  const polygonWithTrianglePreferenceCornerCount =
+    polygonWithTrianglePreference === triangleIntent?.candidate
+      ? triangleIntent.vertexCount
+      : bestPolygonCornerCount;
 
   if (cornerIndices.length <= 2) {
     const fallbackCandidate = chooseBetweenCurveAndPolygon(
       curveCandidate,
-      simplifiedFallback.candidate,
+      triangleIntent?.candidate ?? simplifiedFallback.candidate,
       extracted.meanSaliency,
       extracted.meanTurn,
     );
@@ -2619,8 +2843,10 @@ export function detectBestShape(input: ShapeDetectionInput): ShapeMatch | null {
       fallbackCandidate,
       closureGap,
       fillRatio,
-      fallbackCandidate === simplifiedFallback.candidate
-        ? simplifiedFallback.vertexCount
+      fallbackCandidate === triangleIntent?.candidate
+        ? triangleIntent.vertexCount
+        : fallbackCandidate === simplifiedFallback.candidate
+          ? simplifiedFallback.vertexCount
         : cornerIndices.length,
     );
   }
@@ -2636,7 +2862,7 @@ export function detectBestShape(input: ShapeDetectionInput): ShapeMatch | null {
 
   const finalCandidate = chooseBetweenCurveAndPolygon(
     curveCandidate,
-    bestPolygonCandidate,
+    polygonWithTrianglePreference,
     extracted.meanSaliency,
     extracted.meanTurn,
   );
@@ -2645,8 +2871,8 @@ export function detectBestShape(input: ShapeDetectionInput): ShapeMatch | null {
       finalCandidate,
       closureGap,
       fillRatio,
-      finalCandidate === bestPolygonCandidate
-        ? bestPolygonCornerCount
+      finalCandidate === polygonWithTrianglePreference
+        ? polygonWithTrianglePreferenceCornerCount
         : cornerIndices.length,
     );
   }

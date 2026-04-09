@@ -23,7 +23,7 @@ PluginManager.init();
 
 PluginManager.registerButton(2, ['NOTE', 'DOC'], {
   id: SNAP_SHAPE_BUTTON_ID,
-  name: 'Snap Shape',
+  name: 'Snap Shapes',
   icon: iconUri,
   editDataTypes: SUPPORTED_LASSO_DATA_TYPES,
   showType: 0,
