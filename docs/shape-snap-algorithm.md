@@ -15,6 +15,14 @@ Use a two-stage approach:
 
 The write-back path should be local to the selected content whenever possible.
 
+The current implementation is intentionally biased toward deterministic, local geometry decisions:
+
+- resample paths spatially so drawing speed does not affect the geometry
+- stitch nearby stroke endpoints before fitting
+- trim small closing overshoots before interpreting a shape as closed
+- route obvious lines, curves, and polygons through small family-specific fitters
+- fall back quickly on no-match instead of escalating to slow page-level work
+
 ## Input Model
 
 The algorithm operates on the lasso-selected strokes only.
@@ -93,6 +101,12 @@ Then simplify the contour in two passes:
 2. corner consolidation to merge nearby or nearly collinear vertices
 
 This stage is crucial. Polygon recognition quality depends more on corner extraction quality than on downstream scoring.
+
+In practice, this stage also does the most to stabilize Supernote ink:
+
+- resampling removes pen-speed density artifacts
+- tail trimming prevents small overlaps from inflating corner counts
+- open-shape simplification gives retraced triangles and rectangles a second chance before rejection
 
 ## Step 5: Extract Corner Hypotheses
 
@@ -195,6 +209,25 @@ Examples:
 
 Finally, require the winning score to clear a confidence threshold. If it does not, return no match.
 
+The current tuning priority inside this step is:
+
+- keep ellipse-vs-polygon arbitration conservative
+- allow circle-over-ellipse preference only for genuinely near-isotropic loops
+- allow open-triangle recovery when the contour is obviously triangular but not cleanly closed
+
+## Step 8.5: Normalize Near-Axis Orientation
+
+After a candidate family has already been chosen, optionally regularize its orientation.
+
+Rules:
+
+- inspect the final line direction, polygon edge directions, or ellipse axes
+- if any of those directions is within 10 degrees of horizontal, rotate the entire geometry to exact horizontal alignment
+- otherwise, if any is within 10 degrees of vertical, rotate the entire geometry to exact vertical alignment
+- prefer horizontal over vertical when both are available
+
+This is a post-fit cleanup step. It should not change the chosen family or try to rescue a bad fit. Its only purpose is to remove small residual tilt from shapes that were already drawn as nearly horizontal or vertical.
+
 ## Step 9: Write Back Efficiently
 
 The write path should be chosen separately from the matcher.
@@ -257,3 +290,16 @@ If triangles and squares are failing while circles work, the likely root cause i
 
 That should be treated as the main algorithmic improvement area.
 
+## Current Benchmark Use
+
+The repo now carries a reduced fixture from a real exported Supernote sample page:
+
+- [sample-page-2026-04-09.json](/Users/mdf/code/supernote-shape-snap/__tests__/fixtures/sample-page-2026-04-09.json)
+
+It is used as a regression target because it exercises the current failure-prone zones in one page:
+
+- rounded rectangles
+- circle vs ellipse discrimination
+- open or retraced triangles
+- pentagon side-count stability
+- rejection of false polygon hypotheses on elongated ovals

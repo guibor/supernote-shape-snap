@@ -88,6 +88,18 @@ type FastPathPlan = {
   geometries: Geometry[];
 };
 
+type FastPathOutcome =
+  | {
+      kind: 'plan';
+      plan: FastPathPlan;
+    }
+  | {
+      kind: 'no_match';
+    }
+  | {
+      kind: 'fallback';
+    };
+
 let isSnapping = false;
 
 function asResponse<T>(value: unknown): APIResponse<T> {
@@ -207,6 +219,35 @@ function normalizePoint(point: PointLike): PointLike {
     x: Math.round(point.x * 1000) / 1000,
     y: Math.round(point.y * 1000) / 1000,
   };
+}
+
+function samePoint(left: PointLike, right: PointLike): boolean {
+  return distance(left, right) <= 0.5;
+}
+
+export function closePolygonPoints(points: PointLike[]): PointLike[] {
+  if (points.length < 3) {
+    return points.slice();
+  }
+
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (samePoint(first, last)) {
+    return points.slice();
+  }
+
+  return points.concat([{...first}]);
+}
+
+function isLayerUnsupportedError(error: unknown): boolean {
+  const message =
+    typeof error === 'string'
+      ? error
+      : error instanceof Error
+        ? error.message
+        : '';
+
+  return /cannot operate on layers/i.test(message);
 }
 
 async function readAllAccessorItems<T>(
@@ -375,7 +416,7 @@ function buildGeometry(
   }
 
   geometry.type = Geometry.TYPE_POLYGON;
-  geometry.points = geometryDescriptor.points;
+  geometry.points = closePolygonPoints(geometryDescriptor.points);
   geometry.ellipseCenterPoint = null;
   geometry.ellipseMajorAxisRadius = 0;
   geometry.ellipseMinorAxisRadius = 0;
@@ -513,11 +554,19 @@ async function getCurrentLayerId(
     return null;
   }
 
-  const layers = throwIfFailed(
-    asResponse<LayerInfo[]>(await PluginFileAPI.getLayers(filePath, page)),
-    'Failed to get note layers',
+  const layersResponse = asResponse<LayerInfo[]>(
+    await PluginFileAPI.getLayers(filePath, page),
   );
+  if (!layersResponse?.success) {
+    const message = layersResponse?.error?.message ?? 'Failed to get note layers';
+    if (isLayerUnsupportedError(message)) {
+      return null;
+    }
 
+    throw new Error(message);
+  }
+
+  const layers = layersResponse.result ?? [];
   const currentLayer = layers.find(layer => layer.isCurrentLayer);
   return currentLayer?.layerId ?? 0;
 }
@@ -527,13 +576,13 @@ async function buildFastPathPlan(
   page: number,
   lassoElements: Element[],
   pageSize: Size,
-): Promise<FastPathPlan | null> {
+): Promise<FastPathOutcome> {
   const selectedStrokes = lassoElements.filter(
     element => element.type === Element.TYPE_STROKE,
   );
 
   if (!selectedStrokes.length || selectedStrokes.length !== lassoElements.length) {
-    return null;
+    return {kind: 'fallback'};
   }
 
   const strokeInfos = (
@@ -543,14 +592,18 @@ async function buildFastPathPlan(
   ).filter(Boolean) as StrokeInfo[];
 
   if (strokeInfos.length !== selectedStrokes.length) {
-    return null;
+    return {kind: 'fallback'};
   }
 
   const clusters = clusterStrokes(strokeInfos);
   const matches = matchClusters(clusters);
 
+  if (!matches.length) {
+    return {kind: 'no_match'};
+  }
+
   if (matches.length !== clusters.length) {
-    return null;
+    return {kind: 'fallback'};
   }
 
   const currentLayerId = await getCurrentLayerId(filePath, page);
@@ -558,13 +611,16 @@ async function buildFastPathPlan(
     currentLayerId !== null &&
     matches.some(match => match.cluster.layerNum !== currentLayerId)
   ) {
-    return null;
+    return {kind: 'fallback'};
   }
 
   return {
-    geometries: matches.map(({cluster, geometryDescriptor}) =>
-      buildGeometry(geometryDescriptor, deriveClusterStyle(cluster)),
-    ),
+    kind: 'plan',
+    plan: {
+      geometries: matches.map(({cluster, geometryDescriptor}) =>
+        buildGeometry(geometryDescriptor, deriveClusterStyle(cluster)),
+      ),
+    },
   };
 }
 
@@ -715,9 +771,22 @@ export async function snapCurrentSelection(): Promise<void> {
       'Failed to get page size',
     );
 
-    const fastPathPlan = await buildFastPathPlan(filePath, page, lassoElements, pageSize);
-    if (fastPathPlan) {
-      await executeFastPath(fastPathPlan);
+    const fastPathOutcome = await buildFastPathPlan(
+      filePath,
+      page,
+      lassoElements,
+      pageSize,
+    );
+    if (fastPathOutcome.kind === 'plan') {
+      await executeFastPath(fastPathOutcome.plan);
+      return;
+    }
+
+    if (fastPathOutcome.kind === 'no_match') {
+      await showStatus(
+        'Snap Shape could not find a clear shape match for this selection.',
+        false,
+      );
       return;
     }
 

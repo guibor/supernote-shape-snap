@@ -54,13 +54,21 @@ The set may grow later, but these are the required v1 targets.
 - Prefer square over rectangle only when both fit nearly equally well.
 - Do not force a simpler family when the evidence clearly supports another family.
 
-### 4. Reject text, letters, and scribbles
+### 4. Prefer axis alignment when the drawing is already close
+
+- If a fitted line, polygon edge, or ellipse axis is already close to horizontal or vertical, snap the final geometry to that axis.
+- Working threshold: within 10 degrees of an axis.
+- Prefer horizontal alignment first.
+- Use vertical alignment only when no horizontal snap applies.
+- This is a regularization step on the final geometry, not a reason to change shape family.
+
+### 5. Reject text, letters, and scribbles
 
 - Handwriting, letters, short text, symbols, and general doodles should be ignored.
 - The default behavior for ambiguous input is no-op, not aggressive snapping.
 - The matcher should be conservative about false positives.
 
-### 5. Failure should be fast and quiet
+### 6. Failure should be fast and quiet
 
 - If no good shape match exists, do nothing quickly.
 - A no-match result should not trigger slow page-level IO.
@@ -107,6 +115,8 @@ The set may grow later, but these are the required v1 targets.
   - scale
   - layer
 
+When the fitted geometry is already near an axis-aligned orientation, the final snapped result should prefer exact horizontal or vertical orientation over preserving the small residual tilt.
+
 ### Multi-Shape Behavior
 
 - If a lasso contains several valid shapes, each valid shape should be snapped independently.
@@ -146,3 +156,31 @@ The feature should be considered acceptable when all of the following are usuall
 - no-match cases return quickly
 - common successful snaps do not blank the full page
 
+## Benchmarking
+
+The current active regression target is the exported sample page captured on 2026-04-09 and reduced into:
+
+- [sample-page-2026-04-09.json](/Users/mdf/code/supernote-shape-snap/__tests__/fixtures/sample-page-2026-04-09.json)
+
+This page matters because it contains the exact notebook-style failures that were blocking normal use:
+
+- rough rectangles
+- near-circle vs ellipse cases
+- a retraced open triangle
+- a five-sided polygon
+- elongated ellipses that should not collapse into polygons
+
+The expected interpretation of the 10 isolated shapes on that page is currently:
+
+1. rectangle
+2. rectangle
+3. circle
+4. ellipse
+5. ellipse
+6. triangle
+7. ellipse
+8. pentagon
+9. ellipse
+10. rectangle
+
+This benchmark is not a substitute for a broader dataset, but it is the current bar for "works well enough to trust during iteration."

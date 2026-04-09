@@ -1,97 +1,137 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Supernote Shape Snap
 
-# Getting Started
+Supernote Shape Snap is a Supernote plugin that turns rough hand-drawn lasso selections into clean geometry.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+Current supported output families:
 
-## Step 1: Start Metro
+- line
+- circle
+- ellipse
+- triangle
+- rectangle
+- square
+- pentagon
+- hexagon
+- heptagon
+- octagon
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+The plugin is designed for real notebook use, not idealized geometry. The main goals are:
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- keep the write path local to the lassoed content
+- avoid full-page blanking during ordinary snaps
+- strongly avoid false positives on text and scribbles
+- regularize geometry in useful ways, including near-axis alignment
+
+## Current Behavior
+
+The matcher currently uses a resampled, corner-first digital-ink pipeline with:
+
+- spatial resampling
+- stroke stitching
+- closing-tail trimming
+- conservative text and scribble rejection
+- curve fitting for circles and ellipses
+- polygon fitting for triangles through octagons
+- explicit polygon closure on Supernote write-back
+- post-fit orientation snapping when a line, polygon edge, or ellipse axis is already within 10 degrees of horizontal or vertical
+
+Write-path behavior:
+
+- ordinary lasso-only snaps use a fast local replace path
+- recognized notes degrade gracefully when layer APIs are unavailable
+- polygon geometry is emitted as a closed ring so the final edge is reliably drawn on device
+
+## Repo Guide
+
+- [docs/shape-snap-requirements.md](docs/shape-snap-requirements.md) — product requirements and acceptance criteria
+- [docs/shape-snap-algorithm.md](docs/shape-snap-algorithm.md) — implementation-neutral algorithm notes
+- [docs/shape-snap-status.md](docs/shape-snap-status.md) — current benchmark and known ambiguities
+
+Important source files:
+
+- [index.js](index.js) — plugin registration and button wiring
+- [src/shapeMatching.ts](src/shapeMatching.ts) — matcher and geometry normalization
+- [src/shapeSnap.ts](src/shapeSnap.ts) — lasso selection handling and Supernote write path
+- [src/exportDataset.ts](src/exportDataset.ts) — benchmark export actions
+
+## Benchmarking
+
+The current active regression fixture is:
+
+- [__tests__/fixtures/sample-page-2026-04-09.json](__tests__/fixtures/sample-page-2026-04-09.json)
+
+It is a reduced real-device export from a Supernote page containing 10 isolated hand-drawn shapes. That page is used as the current “works well enough to trust” benchmark while the broader dataset is still being built.
+
+The current expected labels for that page are:
+
+1. rectangle
+2. rectangle
+3. circle
+4. ellipse
+5. ellipse
+6. triangle
+7. ellipse
+8. pentagon
+9. ellipse
+10. rectangle
+
+Tests:
+
+- [__tests__/shapeMatching.test.ts](__tests__/shapeMatching.test.ts)
+- [__tests__/shapeSnap.test.ts](__tests__/shapeSnap.test.ts)
+
+## Dataset Export Workflow
+
+The plugin also includes export actions to support offline matcher tuning.
+
+- `Export Sample`
+  - exports the current lasso selection as JSON plus a page preview PNG
+  - intended for benchmark collection
+- `Export Note`
+  - exports a raw `.note` plus page-level JSON for every page
+  - intended for archival and later re-segmentation
+
+Export output on device:
+
+- `MyStyle/supernote_shape_snap_exports/samples/`
+- `MyStyle/supernote_shape_snap_exports/notes/`
+
+## Build
+
+From the repo root:
 
 ```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+npm install
+npm run typecheck
+npx jest __tests__/shapeMatching.test.ts __tests__/shapeSnap.test.ts --runInBand --watchman=false
+bash ./buildPlugin.sh
 ```
 
-## Step 2: Build and run your app
+The packaged plugin is written to:
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```text
+build/outputs/supernote_shape_snap.snplg
 ```
 
-### iOS
+## Install on Supernote
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+Upload the `.snplg` to:
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```text
+MyStyle/
 ```
 
-Then, and every time you update your native dependencies, run:
+Then install on the device:
 
-```sh
-bundle exec pod install
+```text
+Settings -> Apps -> Plugins -> Add Plugin
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## Current Known Weak Spots
 
-```sh
-# Using npm
-npm run ios
+The plugin is in a good state, but the remaining likely improvement areas are:
 
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- triangle reliability on some hand-drawn closed triangles
+- over-eager regular polygon preference on unsupported “house” or generic 5-sided shapes
+- broader benchmark coverage, especially negatives and multi-stroke examples
+- a future settings surface for tuning thresholds without rebuilding the plugin
