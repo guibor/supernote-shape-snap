@@ -1,5 +1,5 @@
 {
-  "name": "supernote_shape_snap",
+  "name": "Snap Shapes",
   "desc": "Snap Shapes converts lasso-selected strokes into clean nearby shapes while leaving non-shapes unchanged.",
   "iconPath": "assets/icon.png",
   "versionName": "0.0.1",
