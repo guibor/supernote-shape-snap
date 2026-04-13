@@ -102,6 +102,8 @@ type FastPathOutcome =
 
 let isSnapping = false;
 
+const SNAP_PLUGIN_TAG = 'supernote_shape_snap';
+
 function asResponse<T>(value: unknown): APIResponse<T> {
   return value as APIResponse<T>;
 }
@@ -391,6 +393,9 @@ function buildGeometry(
   geometry.penColor = style.penColor;
   geometry.penType = style.penType;
   geometry.penWidth = style.penWidth;
+  // Keep the existing UX: insert the snapped geometry without immediately
+  // reselecting it via lasso.
+  geometry.showLassoAfterInsert = false;
 
   if (geometryDescriptor.type === 'line') {
     geometry.type = Geometry.TYPE_STRAIGHT_LINE;
@@ -423,6 +428,19 @@ function buildGeometry(
   geometry.ellipseAngle = 0;
 
   return geometry;
+}
+
+function buildElementUserData(geometryDescriptor: GeometryDescriptor): string {
+  const shapeKind =
+    geometryDescriptor.type === 'polygon'
+      ? `polygon:${geometryDescriptor.points.length}`
+      : geometryDescriptor.type;
+
+  return JSON.stringify({
+    plugin: SNAP_PLUGIN_TAG,
+    shape: shapeKind,
+    generated_by: 'snapCurrentSelection',
+  });
 }
 
 function matchClusters(clusters: StrokeCluster[]): ClusterMatch[] {
@@ -466,6 +484,7 @@ async function createGeometryElement(
   element.layerNum = layer;
   element.thickness = style.penWidth;
   element.geometry = geometry;
+  element.userData = buildElementUserData(geometryDescriptor);
 
   return element;
 }

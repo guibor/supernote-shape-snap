@@ -56,7 +56,7 @@ From the repo root:
 npm install
 npm run typecheck
 npx jest __tests__/shapeMatching.test.ts __tests__/shapeSnap.test.ts --runInBand --watchman=false
-bash ./buildPlugin.sh
+npm run build:plugin
 ```
 
 The packaged plugin is written to:
