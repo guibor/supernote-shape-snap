@@ -71,6 +71,11 @@ build/outputs/supernote_shape_snap.snplg
 2. On device, open `Settings -> Apps -> Plugins -> Add Plugin`
 3. Install the package
 
+## Release Notes
+
+- The current known-good release line is `0.0.5`.
+- When testing a fix on-device, always ship a higher `versionCode` than the currently installed package. Otherwise the device may keep the older broken install and make a working revert look broken.
+
 ## Notes
 
 - The displayed plugin name is `Snap Shapes`
