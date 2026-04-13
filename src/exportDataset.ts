@@ -101,11 +101,6 @@ type SerializedElement =
 
 let isExporting = false;
 
-function getElementUserData(element: Element): string | null {
-  const maybeElement = element as Element & {userData?: string | null};
-  return maybeElement.userData ?? null;
-}
-
 function asResponse<T>(value: unknown): APIResponse<T> {
   return value as APIResponse<T>;
 }
@@ -248,7 +243,7 @@ async function serializeStrokeElement(
     page_num: element.pageNum ?? 0,
     layer_num: element.layerNum ?? 0,
     num_in_page: element.numInPage ?? -1,
-    user_data: getElementUserData(element),
+    user_data: element.userData ?? null,
     thickness: element.thickness ?? 0,
     recognition_name: element.recognizeResult?.predict_name?.trim() || null,
     pen_color: element.stroke?.penColor ?? 0,
@@ -266,7 +261,7 @@ function serializeGeometryElement(element: Element): SerializedGeometryElement {
     page_num: element.pageNum ?? 0,
     layer_num: element.layerNum ?? 0,
     num_in_page: element.numInPage ?? -1,
-    user_data: getElementUserData(element),
+    user_data: element.userData ?? null,
     thickness: element.thickness ?? 0,
     geometry_type: element.geometry?.type ?? null,
     pen_color: element.geometry?.penColor ?? null,
@@ -302,7 +297,7 @@ async function serializeElement(
     page_num: element.pageNum ?? 0,
     layer_num: element.layerNum ?? 0,
     num_in_page: element.numInPage ?? -1,
-    user_data: getElementUserData(element),
+    user_data: element.userData ?? null,
     thickness: element.thickness ?? 0,
     element_type: element.type,
     recognition_name: element.recognizeResult?.predict_name?.trim() || null,
