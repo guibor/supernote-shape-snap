@@ -2,8 +2,8 @@
   "name": "Snap Shapes",
   "desc": "Snap Shapes converts lasso-selected strokes into clean nearby shapes while leaving non-shapes unchanged.",
   "iconPath": "assets/icon.png",
-  "versionName": "0.0.2",
-  "versionCode": "2",
+  "versionName": "0.0.1",
+  "versionCode": "1",
   "pluginID": "za2k9tzqdssnp4us",
   "pluginKey": "supernote_shape_snap",
   "jsMainPath": "index"

@@ -53,7 +53,6 @@ type SerializedStrokeElement = {
   page_num: number;
   layer_num: number;
   num_in_page: number;
-  user_data: string | null;
   thickness: number;
   recognition_name: string | null;
   pen_color: number;
@@ -69,7 +68,6 @@ type SerializedGeometryElement = {
   page_num: number;
   layer_num: number;
   num_in_page: number;
-  user_data: string | null;
   thickness: number;
   geometry_type: string | null;
   pen_color: number | null;
@@ -88,7 +86,6 @@ type SerializedGenericElement = {
   page_num: number;
   layer_num: number;
   num_in_page: number;
-  user_data: string | null;
   thickness: number;
   element_type: number;
   recognition_name: string | null;
@@ -243,7 +240,6 @@ async function serializeStrokeElement(
     page_num: element.pageNum ?? 0,
     layer_num: element.layerNum ?? 0,
     num_in_page: element.numInPage ?? -1,
-    user_data: element.userData ?? null,
     thickness: element.thickness ?? 0,
     recognition_name: element.recognizeResult?.predict_name?.trim() || null,
     pen_color: element.stroke?.penColor ?? 0,
@@ -261,7 +257,6 @@ function serializeGeometryElement(element: Element): SerializedGeometryElement {
     page_num: element.pageNum ?? 0,
     layer_num: element.layerNum ?? 0,
     num_in_page: element.numInPage ?? -1,
-    user_data: element.userData ?? null,
     thickness: element.thickness ?? 0,
     geometry_type: element.geometry?.type ?? null,
     pen_color: element.geometry?.penColor ?? null,
@@ -297,7 +292,6 @@ async function serializeElement(
     page_num: element.pageNum ?? 0,
     layer_num: element.layerNum ?? 0,
     num_in_page: element.numInPage ?? -1,
-    user_data: element.userData ?? null,
     thickness: element.thickness ?? 0,
     element_type: element.type,
     recognition_name: element.recognizeResult?.predict_name?.trim() || null,
