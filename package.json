@@ -1,7 +1,7 @@
 {
   "name": "supernote_shape_snap",
   "description": "Supernote lasso plugin that snaps drawn strokes to clean geometric shapes.",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
