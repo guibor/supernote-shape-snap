@@ -114,6 +114,14 @@ Artifact:
 build/outputs/supernote_shape_snap.snplg
 ```
 
+Public tracked artifact:
+
+```text
+dist/supernote_shape_snap.snplg
+```
+
+After rebuilding for a public package, copy the build output into `dist/` and update the README checksum.
+
 ## Supernote Transfer Notes
 
 - Verified HTTP endpoint on this machine has been `http://10.100.102.19:8089`

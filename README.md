@@ -34,6 +34,18 @@ Snap Shapes is a Supernote plugin that turns rough lasso-selected ink into clean
 - Ignores many text-like and scribbly selections instead of forcing a snap
 - Regularizes near-horizontal and near-vertical geometry
 
+## Download
+
+The latest compiled Supernote plugin package is tracked in the repo:
+
+- [dist/supernote_shape_snap.snplg](dist/supernote_shape_snap.snplg)
+
+Current packaged version:
+
+- `versionName`: `0.0.5`
+- `versionCode`: `5`
+- SHA-256: `1181ee7b1c9671fbe998276ec97d1b2a9d3a83697fc2bd57b046c25ecfa7dbe1`
+
 ## Repo Layout
 
 - [docs/shape-snap-requirements.md](docs/shape-snap-requirements.md): product requirements
@@ -67,7 +79,7 @@ build/outputs/supernote_shape_snap.snplg
 
 ## Install on Supernote
 
-1. Copy the `.snplg` file to `MyStyle/`
+1. Copy [dist/supernote_shape_snap.snplg](dist/supernote_shape_snap.snplg) to `MyStyle/`
 2. On device, open `Settings -> Apps -> Plugins -> Add Plugin`
 3. Install the package
 
