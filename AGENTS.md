@@ -33,11 +33,12 @@ This file is the main hook for agent-oriented repo context. Keep the public READ
 
 ## Button/UI State
 
-Current buttons:
+Current public buttons:
 
 - Lasso action: `Snap Shapes`
-- Lasso action: `Export Sample`
-- Toolbar action: `Export Note`
+
+Developer dataset export buttons are implemented but disabled by default in `index.js`
+so the public plugin list does not show export-oriented labels.
 
 Current limitation:
 

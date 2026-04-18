@@ -16,6 +16,7 @@ import {
 
 const iconUri = Image.resolveAssetSource(require('./assets/icon.png')).uri;
 const SUPPORTED_LASSO_DATA_TYPES = [0, 1, 2, 3, 4, 5];
+const ENABLE_DATASET_EXPORT_BUTTONS = false;
 
 AppRegistry.registerComponent(appName, () => App);
 
@@ -29,20 +30,22 @@ PluginManager.registerButton(2, ['NOTE', 'DOC'], {
   showType: 0,
 });
 
-PluginManager.registerButton(2, ['NOTE', 'DOC'], {
-  id: EXPORT_SAMPLE_BUTTON_ID,
-  name: 'Export Sample',
-  icon: iconUri,
-  editDataTypes: SUPPORTED_LASSO_DATA_TYPES,
-  showType: 0,
-});
+if (ENABLE_DATASET_EXPORT_BUTTONS) {
+  PluginManager.registerButton(2, ['NOTE', 'DOC'], {
+    id: EXPORT_SAMPLE_BUTTON_ID,
+    name: 'Export Sample',
+    icon: iconUri,
+    editDataTypes: SUPPORTED_LASSO_DATA_TYPES,
+    showType: 0,
+  });
 
-PluginManager.registerButton(1, ['NOTE'], {
-  id: EXPORT_NOTE_BUTTON_ID,
-  name: 'Export Note',
-  icon: iconUri,
-  showType: 0,
-});
+  PluginManager.registerButton(1, ['NOTE'], {
+    id: EXPORT_NOTE_BUTTON_ID,
+    name: 'Export Note',
+    icon: iconUri,
+    showType: 0,
+  });
+}
 
 PluginManager.registerButtonListener({
   onButtonPress(event) {
@@ -51,12 +54,12 @@ PluginManager.registerButtonListener({
       return;
     }
 
-    if (event.id === EXPORT_SAMPLE_BUTTON_ID) {
+    if (ENABLE_DATASET_EXPORT_BUTTONS && event.id === EXPORT_SAMPLE_BUTTON_ID) {
       void exportCurrentLassoSample();
       return;
     }
 
-    if (event.id === EXPORT_NOTE_BUTTON_ID) {
+    if (ENABLE_DATASET_EXPORT_BUTTONS && event.id === EXPORT_NOTE_BUTTON_ID) {
       void exportCurrentNoteDataset();
     }
   },
