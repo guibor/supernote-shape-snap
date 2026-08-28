@@ -9,6 +9,11 @@ import {
   type Point,
 } from 'sn-plugin-lib';
 import {
+  ensurePermissions,
+  FILE_READ_PERMISSION,
+  FILE_WRITE_PERMISSION,
+} from '../permissions';
+import {
   detectBestShape,
   type GeometryDescriptor,
   type PointLike,
@@ -754,6 +759,7 @@ export async function snapCurrentSelection(): Promise<void> {
   isSnapping = true;
 
   try {
+    await ensurePermissions([FILE_READ_PERMISSION, FILE_WRITE_PERMISSION]);
     const filePath = throwIfFailed(
       asResponse<string>(await PluginCommAPI.getCurrentFilePath()),
       'Failed to get current file path',

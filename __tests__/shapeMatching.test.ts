@@ -133,7 +133,7 @@ function sampleLine(start: PointLike, end: PointLike, count = 24): PointLike[] {
   });
 }
 
-function withClosingTail(points: PointLike[], tailLength = 18): PointLike[] {
+function withClosingTail(points: PointLike[]): PointLike[] {
   if (points.length < 8) {
     return points.slice();
   }

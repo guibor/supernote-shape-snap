@@ -9,6 +9,11 @@ import {
   type Point,
   type Rect,
 } from 'sn-plugin-lib';
+import {
+  ensurePermissions,
+  FILE_READ_PERMISSION,
+  FILE_WRITE_PERMISSION,
+} from '../permissions';
 import {detectBestShape, type PointLike} from './shapeMatching';
 import {writeUtf8File} from './native/exportFile';
 
@@ -363,6 +368,7 @@ export async function exportCurrentLassoSample(): Promise<void> {
   isExporting = true;
 
   try {
+    await ensurePermissions([FILE_READ_PERMISSION, FILE_WRITE_PERMISSION]);
     await ensureExportDirs();
 
     const filePath = throwIfFailed(
@@ -504,6 +510,7 @@ export async function exportCurrentNoteDataset(): Promise<void> {
   isExporting = true;
 
   try {
+    await ensurePermissions([FILE_READ_PERMISSION, FILE_WRITE_PERMISSION]);
     await ensureExportDirs();
 
     const filePath = throwIfFailed(

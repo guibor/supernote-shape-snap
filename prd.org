@@ -1,0 +1,15 @@
+#+TITLE: Snap Shapes Requirements
+
+* Requirements
+- Recognize lassoed hand-drawn shapes and replace them with clean geometry while preserving page integrity.
+- Prefer a minimal fast-path mutation and retain a safe page-replacement fallback.
+- Use SDK 0.1.65, explicit file-read/write permission, native-element cleanup, and regression tests.
+
+* Requirements Changed
+** 2026-08-28
+The API update expanded to maximum practical recognition quality, code cleanup, permissions, release validation, and InkHub readiness.
+
+* Next Steps
+- [X] Pass 19 geometry/regression tests and build validated version 0.1.0.
+- [ ] Validate circle, ellipse, line, rectangle, triangle, and ambiguous inputs on-device.
+- [ ] Expand the curated handwriting dataset and publish supported-shape examples.

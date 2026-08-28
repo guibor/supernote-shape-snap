@@ -568,16 +568,6 @@ function resamplePolyline(
   return dedupeSequential(result);
 }
 
-function longestPath(paths: PointLike[][]): PointLike[] {
-  if (!paths.length) {
-    return [];
-  }
-
-  return paths.reduce((best, path) =>
-    pathLength(path) > pathLength(best) ? path : best,
-  );
-}
-
 function containsTextSignal(recognitionNames: string[]): boolean {
   return recognitionNames.some(name =>
     /(text|letter|word|char|digit|number|handwriting|symbol)/i.test(name),
