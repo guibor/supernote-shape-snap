@@ -42,9 +42,9 @@ The latest compiled Supernote plugin package is tracked in the repo:
 
 Current packaged version:
 
-- `versionName`: `0.0.5`
-- `versionCode`: `5`
-- SHA-256: `1181ee7b1c9671fbe998276ec97d1b2a9d3a83697fc2bd57b046c25ecfa7dbe1`
+- `versionName`: `0.1.0`
+- `versionCode`: `7`
+- SHA-256: `9ef4a13763179e43e22bcccbba19497fcb64182a0bb96fc9eb1dd085d4234967`
 
 ## Repo Layout
 
@@ -85,7 +85,8 @@ build/outputs/supernote_shape_snap.snplg
 
 ## Release Notes
 
-- The current known-good release line is `0.0.5`.
+- The current packaged release is `0.1.0`, built against `sn-plugin-lib` `0.1.65`.
+- The package passes the 19 automated shape-matching and write-path regression tests. Physical-device validation on current firmware is still recommended.
 - When testing a fix on-device, always ship a higher `versionCode` than the currently installed package. Otherwise the device may keep the older broken install and make a working revert look broken.
 
 ## Notes

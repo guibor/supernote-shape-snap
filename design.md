@@ -8,3 +8,6 @@ geometry, and applies either a focused mutation or safe page replacement.
 `executeFastPath()` and `executeFallbackPageReplace()` apply the two strategies.
 `src/exportDataset.ts` contains disabled developer-only sample export tools.
 `permissions.ts` owns file access. Jest tests cover recognition and mutation planning.
+The public package is rebuilt into `build/outputs/` and copied to `dist/`; the
+README records the embedded version and SHA-256 so the tracked download can be
+checked independently of GitHub Releases.

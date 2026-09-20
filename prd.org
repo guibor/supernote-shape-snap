@@ -11,5 +11,6 @@ The API update expanded to maximum practical recognition quality, code cleanup, 
 
 * Next Steps
 - [X] Pass 19 geometry/regression tests and build validated version 0.1.0.
+- [X] Publish the rebuilt 0.1.0 package from SDK 0.1.65 with a recorded checksum.
 - [ ] Validate circle, ellipse, line, rectangle, triangle, and ambiguous inputs on-device.
 - [ ] Expand the curated handwriting dataset and publish supported-shape examples.
